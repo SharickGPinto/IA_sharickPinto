@@ -1,0 +1,10 @@
+[
+    {
+        "id": 1,
+        "nombre": "david",
+        "apellido": "dm",
+        "telefono": 12121,
+        "direccion": "2222",
+        "tipo": "Residente"
+    }
+]
