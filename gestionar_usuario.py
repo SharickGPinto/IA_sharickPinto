@@ -42,82 +42,62 @@ class UsuarioRepository:
                 return nombre
         return None
 
-# --- CAPA DE INTERFAZ (UI) ---
+# Instancia global para los métodos internos
 repo = UsuarioRepository(NOMBRE_ARCHIVO)
 
-def _solicitar_tipo_usuario() -> str:
-    op = validar_menu("Seleccione el tipo de usuario:\n1. Residente\n2. Administrador\n", 1, 2)
-    return transformar_tipo(op)
+# --- FUNCIONES QUE PIDE EL MÓDULO DE PRÉSTAMOS (IMPORTANTE) ---
 
-def imprimir_perfil_usuario(u: Dict):
-    print(f"""
-    ****************************
-    ID:             {u.get('id')}
-    NOMBRE:         {u.get('nombre')} {u.get('apellido')}
-    TELÉFONO:       {u.get('telefono')}
-    DIRECCIÓN:      {u.get('direccion')}
-    TIPO:           {u.get('tipo', 'No definido')}
-    ****************************""")
-
-def guardar_usuario_ui():
-    nuevo_usuario = {
-        'nombre':    validar_texto('Ingrese el nombre: ', 1, 30),
-        'apellido':  validar_texto('Ingrese el apellido: ', 1, 30),
-        'telefono':  validar_entero('Ingrese el número de teléfono: '),
-        'direccion': validar_texto('Ingrese la dirección: ', 1, 50),
-        'tipo':      _solicitar_tipo_usuario()
-    }
-    repo.guardar_nuevo(nuevo_usuario)
-    print('¡USUARIO GUARDADO CORRECTAMENTE!')
-
-def listar_usuarios_ui():
+def listar_usuario():
+    """Función puente para gestionar_prestamo.py"""
     registros = repo.obtener_todos()
     if not registros:
         print("No hay usuarios registrados.")
         return
     for u in registros:
-        imprimir_perfil_usuario(u)
+        print(f"ID: {u.get('id')} | Nombre: {u.get('nombre')} {u.get('apellido')}")
+
+def validar_usuario(usuario_id: int):
+    """Función puente para gestionar_prestamo.py"""
+    usuario = repo.buscar_por_id(usuario_id)
+    return usuario if usuario else False
+
+# --- CAPA DE INTERFAZ DE USUARIO (UI) ---
+
+def guardar_usuario_ui():
+    print("\n--- REGISTRO DE USUARIO ---")
+    nuevo = {
+        'nombre':    validar_texto('Nombre: ', 1, 30),
+        'apellido':  validar_texto('Apellido: ', 1, 30),
+        'telefono':  validar_entero('Teléfono: '),
+        'direccion': validar_texto('Dirección: ', 1, 50),
+        'tipo':      transformar_tipo(validar_menu("1. Residente\n2. Admin\n", 1, 2))
+    }
+    repo.guardar_nuevo(nuevo)
+    print('¡Usuario registrado!')
+
+def listar_usuarios_ui():
+    print("\n--- LISTADO GENERAL ---")
+    listar_usuario()
 
 def buscar_usuario_ui():
-    id_buscado = validar_entero("Ingrese el ID a buscar: ")
-    usuario = repo.buscar_por_id(id_buscado)
-    if usuario:
-        imprimir_perfil_usuario(usuario)
+    id_buscado = validar_entero("ID a buscar: ")
+    u = repo.buscar_por_id(id_buscado)
+    if u:
+        print(f"ID: {u['id']} | {u['nombre']} {u['apellido']} | {u['tipo']}")
     else:
-        print(f"No se encontró el usuario con ID: {id_buscado}")
+        print("No encontrado.")
 
 def actualizar_usuario_ui():
     listar_usuarios_ui()
-    id_act = validar_entero("Ingrese el ID a actualizar: ")
-    
-    if not repo.buscar_por_id(id_act):
-        print("Usuario no encontrado.")
-        return
-
-    opcion = validar_menu("""
-    1. Nombre       2. Apellido
-    3. Teléfono     4. Dirección
-    5. Tipo         6. Cancelar
-    Seleccione: """, 1, 6)
-
-    if opcion == 6: return
-
-    cambios = {}
-    if opcion == 1: cambios['nombre'] = validar_texto('Nuevo nombre: ', 1, 20)
-    elif opcion == 2: cambios['apellido'] = validar_texto('Nuevo apellido: ', 1, 20)
-    elif opcion == 3: cambios['telefono'] = validar_entero('Nuevo teléfono: ')
-    elif opcion == 4: cambios['direccion'] = validar_texto('Nueva dirección: ', 1, 50)
-    elif opcion == 5: cambios['tipo'] = _solicitar_tipo_usuario()
-
-    if repo.actualizar(id_act, cambios):
-        print("¡Dato actualizado con éxito!")
+    id_act = validar_entero("ID a modificar: ")
+    if repo.buscar_por_id(id_act):
+        # Lógica simplificada para el ejemplo
+        nuevo_nom = validar_texto("Nuevo nombre: ", 1, 30)
+        repo.actualizar(id_act, {'nombre': nuevo_nom})
+        print("Actualizado.")
 
 def eliminar_usuario_ui():
     listar_usuarios_ui()
-    id_elim = validar_entero("Ingrese el ID a eliminar: ")
-    nombre_eliminado = repo.eliminar(id_elim)
-    
-    if nombre_eliminado:
-        print(f"El usuario '{nombre_eliminado}' ha sido eliminado.")
-    else:
-        print("ID no encontrado.")
+    id_elim = validar_entero("ID a eliminar: ")
+    if repo.eliminar(id_elim):
+        print("Eliminado con éxito.")

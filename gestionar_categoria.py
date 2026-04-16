@@ -47,55 +47,58 @@ class CategoriaRepository:
             return True
         return False
 
-
-# --- CAPA DE INTERFAZ DE USUARIO (CONTROLADOR DE CONSOLA) ---
+# Instancia global para ser usada por otros módulos
 repo = CategoriaRepository(NOMBRE_ARCHIVO)
 
-def guardar_categoria_ui():  # Corregido: antes era crear_categoria_ui
+# --- FUNCIONES DE COMPATIBILIDAD (Para que gestionar_herramienta no falle) ---
+
+def validar_categoria(id_categoria: int):
+    """Retorna la categoría si existe, de lo contrario False."""
+    categoria = repo.buscar_por_id(id_categoria)
+    return categoria if categoria else False
+
+def listar_categoria():
+    """Versión simple de listado para procesos internos."""
+    registros = repo.obtener_todas()
+    if not registros:
+        print("No hay categorías.")
+        return
+    for c in registros:
+        print(f"ID: {c['id']} - {c['nombre']}")
+
+# --- CAPA DE INTERFAZ DE USUARIO (CONTROLADOR DE CONSOLA) ---
+
+def guardar_categoria_ui():
     nombre = validar_texto('Ingrese el nombre de la categoría: ', 1, 30)
     repo.guardar_nueva(nombre)
     print('¡Categoría guardada exitosamente!')
 
 def listar_categorias_ui():
-    registros = repo.obtener_todas()
-    if not registros:
-        print("No hay categorías registradas.")
-        return
-
     print("\n--- LISTADO DE CATEGORÍAS ---")
-    for cat in registros:
-        print(f"ID: {cat['id']:<5} | Categoría: {cat['nombre']}")
+    listar_categoria()
 
 def buscar_categoria_ui():
     id_buscar = validar_entero("Ingrese el ID a buscar: ")
     categoria = repo.buscar_por_id(id_buscar)
-    
     if categoria:
-        print(f"\nResultado:\nID: {categoria['id']}\nNombre: {categoria['nombre']}")
+        print(f"\nResultado: ID {categoria['id']} | Nombre: {categoria['nombre']}")
     else:
-        print(f"Error: No se encontró la categoría con ID {id_buscar}")
+        print(f"Error: No se encontró el ID {id_buscar}")
 
 def actualizar_categoria_ui():
     listar_categorias_ui()
-    id_actualizar = validar_entero("Ingrese el ID a modificar: ")
-    
-    if not repo.buscar_por_id(id_actualizar):
+    id_act = validar_entero("Ingrese el ID a modificar: ")
+    if not repo.buscar_por_id(id_act):
         print("ID no encontrado.")
         return
-
-    opcion = validar_menu("1. Editar Nombre\n2. Cancelar\nSeleccione: ", 1, 2)
-    if opcion == 1:
-        nuevo_nombre = validar_texto("Nuevo nombre: ", 1, 20)
-        if repo.actualizar(id_actualizar, nuevo_nombre):
-            print("¡Registro actualizado!")
-    else:
-        print("Operación cancelada.")
+    nuevo_nombre = validar_texto("Nuevo nombre: ", 1, 20)
+    if repo.actualizar(id_act, nuevo_nombre):
+        print("¡Actualizado!")
 
 def eliminar_categoria_ui():
     listar_categorias_ui()
-    id_eliminar = validar_entero("Ingrese el ID a eliminar: ")
-    
-    if repo.eliminar(id_eliminar):
-        print(f"Categoría {id_eliminar} eliminada correctamente.")
+    id_elim = validar_entero("Ingrese el ID a eliminar: ")
+    if repo.eliminar(id_elim):
+        print(f"Categoría {id_elim} eliminada.")
     else:
-        print("No se pudo eliminar: ID no encontrado.")
+        print("ID no encontrado.")

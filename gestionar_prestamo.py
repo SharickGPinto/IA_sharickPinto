@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from datetime import timedelta
 from gestionar_json import cargar, guardar, generar_id
 from gestionar_usuario import listar_usuario, validar_usuario
@@ -8,7 +8,7 @@ from transformaciones import solicitar_fecha_inicio, gestionar, rechazar
 
 NOMBRE_ARCHIVO = 'prestamos.json'
 
-# --- CAPA DE LÓGICA (REPOSITORIO) ---
+# --- REPOSITORIO ---
 class PrestamoRepository:
     def __init__(self, archivo: str):
         self.archivo = archivo
@@ -33,96 +33,109 @@ class PrestamoRepository:
 
     def eliminar(self, prestamo_id: int) -> bool:
         registros = self.obtener_todos()
-        original_len = len(registros)
-        registros = [p for p in registros if p.get('id') != prestamo_id]
-        if len(registros) < original_len:
-            self.actualizar_registros(registros)
+        nuevos = [p for p in registros if p.get('id') != prestamo_id]
+        if len(nuevos) < len(registros):
+            self.actualizar_registros(nuevos)
             return True
         return False
 
-# --- CAPA DE INTERFAZ (UI) ---
 repo = PrestamoRepository(NOMBRE_ARCHIVO)
 
+# --- UTILIDAD ---
 def imprimir_ticket_prestamo(p: Dict):
-    """Estandarización de salida para evitar duplicación."""
     usuario = p.get('usuario', {})
     herramienta = p.get('herramienta', {})
-    print(f"""
-    {'='*45}
-    ID PRÉSTAMO:    {p.get('id')}
-    ESTADO:         [{p.get('estado').upper()}]
-    USUARIO:        {usuario.get('nombre')} (ID: {usuario.get('id')})
-    HERRAMIENTA:    {herramienta.get('nombre')} (ID: {herramienta.get('id')})
-    CANTIDAD:       {p.get('cantidad')}
-    FECHAS:         {p.get('fecha_inicio')} --> {p.get('fecha_final')}
-    OBSERVACIONES:  {p.get('observaciones')}
-    {'='*45}""")
 
-def _validar_entidad_ui(entidad_nombre: str, func_listar, func_validar):
-    """Helper para validar usuarios y herramientas genéricamente."""
-    func_listar()
+    print(f"""
+=========================================
+ID: {p.get('id')}
+Estado: {p.get('estado')}
+Usuario: {usuario.get('nombre')} (ID {usuario.get('id')})
+Herramienta: {herramienta.get('nombre')} (ID {herramienta.get('id')})
+Cantidad: {p.get('cantidad')}
+Inicio: {p.get('fecha_inicio')}
+Fin: {p.get('fecha_final')}
+Observaciones: {p.get('observaciones')}
+=========================================
+""")
+
+def _validar_entidad_ui(nombre, listar, validar):
+    listar()
     while True:
-        id_entidad = validar_entero(f'Ingrese el ID del {entidad_nombre}: ')
-        datos = func_validar(id_entidad)
-        if datos:
-            return datos
-        print(f"Error: {entidad_nombre} no encontrado.")
+        id_val = validar_entero(f"ID {nombre}: ")
+        data = validar(id_val)
+        if data:
+            return data
+        print("No existe.")
+
+# --- FUNCIONES UI (🔥 TODAS LAS NECESARIAS) ---
 
 def guardar_prestamo_ui():
     usuario = _validar_entidad_ui('usuario', listar_usuario, validar_usuario)
     herramienta = _validar_entidad_ui('herramienta', listar_herramienta, validar_herramienta)
-    
-    cantidad = validar_entero('Cantidad de herramientas a solicitar: ')
-    fecha_inicio_dt = solicitar_fecha_inicio()
-    dias = validar_entero('Días de préstamo: ')
-    fecha_final_dt = fecha_inicio_dt + timedelta(days=dias)
 
-    nuevo_prestamo = {
-        'usuario': usuario,
-        'herramienta': herramienta,
-        'cantidad': cantidad,
-        'fecha_inicio': str(fecha_inicio_dt),
-        'fecha_final': str(fecha_final_dt),
-        'estado': 'En proceso',
-        'observaciones': 'Pendiente'
+    cantidad = validar_entero("Cantidad: ")
+    fecha_inicio = solicitar_fecha_inicio()
+    dias = validar_entero("Días: ")
+    fecha_final = fecha_inicio + timedelta(days=dias)
+
+    nuevo = {
+        "usuario": usuario,
+        "herramienta": herramienta,
+        "cantidad": cantidad,
+        "fecha_inicio": str(fecha_inicio),
+        "fecha_final": str(fecha_final),
+        "estado": "En proceso",
+        "observaciones": "Pendiente"
     }
 
-    id_generado = repo.guardar_nuevo(nuevo_prestamo)
-    print(f'\n¡ÉXITO! ID DE SEGUIMIENTO: {id_generado}')
+    id_gen = repo.guardar_nuevo(nuevo)
+    print(f"Préstamo creado con ID: {id_gen}")
 
-def consultar_prestamos_ui(por_usuario: bool = False):
+# 🔥 ESTA TE FALTABA
+def buscar_prestamo_ui():
+    id_buscar = validar_entero("ID préstamo: ")
+    p = repo.buscar_por_id(id_buscar)
+
+    if p:
+        imprimir_ticket_prestamo(p)
+    else:
+        print("No encontrado.")
+
+def consultar_prestamos_ui():
     registros = repo.obtener_todos()
+
     if not registros:
-        print("No hay préstamos registrados.")
+        print("No hay préstamos.")
         return
 
-    filtro_id = None
-    if por_usuario:
-        filtro_id = validar_entero('Ingrese su ID de Usuario para el historial: ')
-    
-    encontrado = False
     for p in registros:
-        if not por_usuario or p.get('usuario', {}).get('id') == filtro_id:
-            imprimir_ticket_prestamo(p)
-            encontrado = True
-    
-    if not encontrado:
-        print("No se encontraron registros.")
+        imprimir_ticket_prestamo(p)
 
 def gestionar_prestamo_ui():
     consultar_prestamos_ui()
-    id_gestion = validar_entero('ID del préstamo a gestionar: ')
+    id_gestion = validar_entero("ID a gestionar: ")
     registros = repo.obtener_todos()
-    
+
     for p in registros:
         if p.get('id') == id_gestion:
-            op = validar_menu("1. Aprobar/Gestionar\n2. Rechazar\nSeleccione: ", 1, 2)
+            op = validar_menu("1. Aprobar\n2. Rechazar\n>>> ", 1, 2)
+
             if op == 1:
                 gestionar(p.get('herramienta', {}).get('id'), p)
             else:
                 rechazar(p)
-            
+
             repo.actualizar_registros(registros)
-            print("Estado actualizado correctamente.")
+            print("Actualizado.")
             return
-    print("ID de préstamo no encontrado.")
+
+    print("No encontrado.")
+
+def eliminar_prestamo_ui():
+    id_elim = validar_entero("ID a eliminar: ")
+
+    if repo.eliminar(id_elim):
+        print("Eliminado.")
+    else:
+        print("No existe.")

@@ -1,7 +1,7 @@
 from validaciones import validar_entero, validar_texto
 from datetime import datetime,date,timedelta
 from gestionar_json import *
-from logs import historial
+from logs import registrar_evento
 
 
 
